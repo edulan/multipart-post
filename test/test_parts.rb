@@ -14,16 +14,21 @@ require 'composite_io'
 MULTIBYTE = File.dirname(__FILE__)+'/multibyte.txt'
 TEMP_FILE = "temp.txt"
 
-module AssertPartLength
+module PartAssertions
   def assert_part_length(part)
     bytes = part.to_io.read
     bytesize = bytes.respond_to?(:bytesize) ? bytes.bytesize : bytes.length
     assert_equal bytesize, part.length
   end
+
+  def assert_part_syntax(part, syntax)
+    bytes = part.to_io.read
+    assert bytes.match(syntax)
+  end
 end
 
 class FilePartTest < Test::Unit::TestCase
-  include AssertPartLength
+  include PartAssertions
 
   def setup
     File.open(TEMP_FILE, "w") {|f| f << "1234567890"}
@@ -45,7 +50,7 @@ class FilePartTest < Test::Unit::TestCase
 end
 
 class ParamPartTest < Test::Unit::TestCase
-  include AssertPartLength
+  include PartAssertions
 
   def setup
     @part = Parts::ParamPart.new("boundary", "multibyte", File.read(MULTIBYTE))
@@ -53,5 +58,22 @@ class ParamPartTest < Test::Unit::TestCase
 
   def test_correct_length
     assert_part_length @part
+  end
+end
+
+class EpiloguePartTest < Test::Unit::TestCase
+  include PartAssertions
+
+  def setup
+    @boundary = "boundary"
+    @part = Parts::EpiloguePart.new(@boundary)
+  end
+
+  def test_correct_length
+    assert_part_length @part
+  end
+
+  def test_correct_syntax
+    assert_part_syntax @part, /--#{@boundary}--\r\n/
   end
 end
